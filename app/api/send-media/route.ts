@@ -200,14 +200,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's WhatsApp API credentials
-    const { data: settings, error: settingsError } = await supabase
+    let { data: settings, error: settingsError } = await supabase
       .from('user_settings')
       .select('access_token, phone_number_id, api_version, access_token_added')
       .eq('id', user.id)
       .single();
 
+    // If user_settings doesn't exist, create it
+    if (settingsError?.code === 'PGRST116') {
+      console.log('User settings not found, creating default settings for user:', user.id);
+      
+      const { data: newSettings, error: createError } = await supabase
+        .from('user_settings')
+        .insert([{
+          id: user.id,
+          access_token_added: false
+        }])
+        .select('access_token, phone_number_id, api_version, access_token_added')
+        .single();
+
+      if (createError) {
+        console.error('Failed to create user settings:', createError);
+        return NextResponse.json(
+          { error: 'Failed to initialize user settings. Please try again.' },
+          { status: 500 }
+        );
+      }
+
+      settings = newSettings;
+      settingsError = null;
+    }
+
     if (settingsError || !settings) {
-      console.error('User settings not found:', settingsError);
+      console.error('User settings error:', settingsError);
       return NextResponse.json(
         { error: 'WhatsApp credentials not configured. Please complete setup.' },
         { status: 400 }
