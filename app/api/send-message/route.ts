@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     // Get user's WhatsApp API credentials
     let { data: settings, error: settingsError } = await supabase
       .from('user_settings')
-      .select('access_token, phone_number_id, api_version, access_token_added, phone_number')
+      .select('access_token, phone_number_id, api_version, access_token_added')
       .eq('id', user.id)
       .single();
 
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       // Re-fetch the newly created settings
       const { data: newSettings, error: refetchError } = await supabase
         .from('user_settings')
-        .select('access_token, phone_number_id, api_version, access_token_added, phone_number')
+        .select('access_token, phone_number_id, api_version, access_token_added')
         .eq('id', user.id)
         .single();
 
