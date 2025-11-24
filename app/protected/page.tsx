@@ -376,28 +376,47 @@ export default function ChatPage() {
           });
           
           setMessages((prev) => {
+            console.log('Processing new message for state update:', {
+              new_message_id: messageWithFlag.id,
+              content: messageWithFlag.content,
+              sender: messageWithFlag.sender_id,
+              receiver: messageWithFlag.receiver_id,
+              timestamp: messageWithFlag.timestamp,
+              is_sent_by_me: messageWithFlag.is_sent_by_me
+            });
+            
             // Avoid duplicates and replace optimistic messages
             // Check if this exact message already exists
             const exists = prev.find(m => m.id === messageWithFlag.id);
             if (exists) {
+              console.log('Message already exists, skipping');
               return prev; // Already have this message
             }
             
             // Check if there's an optimistic message that should be replaced
-            // Match by content, sender, receiver, and timestamp within 5 seconds
-            const optimisticMatch = prev.find(m => 
-              m.id.startsWith('optimistic_') && 
+            // Match by content and sender within a short time window
+            const optimisticMessages = prev.filter(m => m.id.startsWith('optimistic_'));
+            console.log('Looking for optimistic match among:', optimisticMessages.map(m => ({
+              id: m.id,
+              content: m.content,
+              sender: m.sender_id,
+              receiver: m.receiver_id,
+              timestamp: m.timestamp
+            })));
+            
+            const optimisticMatch = optimisticMessages.find(m => 
               m.content === messageWithFlag.content &&
               m.sender_id === messageWithFlag.sender_id &&
-              m.receiver_id === messageWithFlag.receiver_id &&
-              Math.abs(new Date(m.timestamp).getTime() - new Date(messageWithFlag.timestamp).getTime()) < 5000
+              m.receiver_id === messageWithFlag.receiver_id
             );
             
             if (optimisticMatch) {
+              console.log('Found optimistic match, replacing:', optimisticMatch.id);
               // Replace optimistic message with real one
               return prev.map(m => m.id === optimisticMatch.id ? messageWithFlag : m);
             }
             
+            console.log('No optimistic match found, adding as new message');
             // Insert message in correct chronological order
             const newMessages = [...prev, messageWithFlag];
             return newMessages.sort((a, b) => 
