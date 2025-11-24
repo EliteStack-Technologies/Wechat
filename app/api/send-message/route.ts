@@ -165,11 +165,11 @@ export async function POST(request: NextRequest) {
     console.log('Message sent successfully via WhatsApp API:', messageId);
 
     // Prepare message object for database insertion
-    // Note: sender_id is phone number (TEXT), receiver_id is auth user (UUID)
+    // When sending: sender_id is the current user, receiver_id is the recipient
     const messageObject = {
       id: messageId || `outgoing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sender_id: cleanPhoneNumber, // Recipient phone number (sender in DB)
-      receiver_id: user.id, // Current authenticated user (receiver in DB)
+      sender_id: user.id, // Current authenticated user (who is sending)
+      receiver_id: cleanPhoneNumber, // Recipient phone number (who receives)
       content: message,
       timestamp: timestamp,
       is_sent_by_me: true,

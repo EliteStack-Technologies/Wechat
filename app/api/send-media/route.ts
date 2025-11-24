@@ -321,8 +321,8 @@ export async function POST(request: NextRequest) {
         // Store in database
         const messageObject = {
           id: messageId || `outgoing_media_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          sender_id: to, // Recipient phone number (sender in DB)
-          receiver_id: user.id, // Current authenticated user (receiver in DB)
+          sender_id: user.id, // Current authenticated user (who is sending)
+          receiver_id: to, // Recipient phone number (who receives)
           content: caption || `[${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}]`,
           timestamp: timestamp,
           is_sent_by_me: true,
