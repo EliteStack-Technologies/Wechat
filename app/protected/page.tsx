@@ -372,18 +372,26 @@ export default function ChatPage() {
           });
           
           setMessages((prev) => {
-            // Avoid duplicates (check for both regular ID and optimistic ID)
-            const exists = prev.find(m => 
-              m.id === messageWithFlag.id || 
-              (m.id.startsWith('optimistic_') && m.content === messageWithFlag.content && m.timestamp === messageWithFlag.timestamp)
+            // Avoid duplicates and replace optimistic messages
+            // Check if this exact message already exists
+            const exists = prev.find(m => m.id === messageWithFlag.id);
+            if (exists) {
+              return prev; // Already have this message
+            }
+            
+            // Check if there's an optimistic message that should be replaced
+            // Match by content, sender, receiver, and timestamp within 5 seconds
+            const optimisticMatch = prev.find(m => 
+              m.id.startsWith('optimistic_') && 
+              m.content === messageWithFlag.content &&
+              m.sender_id === messageWithFlag.sender_id &&
+              m.receiver_id === messageWithFlag.receiver_id &&
+              Math.abs(new Date(m.timestamp).getTime() - new Date(messageWithFlag.timestamp).getTime()) < 5000
             );
             
-            if (exists) {
+            if (optimisticMatch) {
               // Replace optimistic message with real one
-              if (exists.id.startsWith('optimistic_')) {
-                return prev.map(m => m.id === exists.id ? messageWithFlag : m);
-              }
-              return prev;
+              return prev.map(m => m.id === optimisticMatch.id ? messageWithFlag : m);
             }
             
             // Insert message in correct chronological order
