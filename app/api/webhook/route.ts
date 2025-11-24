@@ -349,14 +349,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Check if user exists in our database
+      // Check if sender exists in our database
       const { data: existingUser } = await supabase
         .from('users')
         .select('*')
         .eq('id', phoneNumber)
         .single();
 
-      // Create user if they don't exist
+      // Create sender user if they don't exist
       if (!existingUser) {
         console.log(`Creating new user: ${contactName}`);
         const { error: userError } = await supabase
@@ -384,8 +384,30 @@ export async function POST(request: NextRequest) {
       }
 
       // The receiver is the business owner who owns this phone number ID
-      // const receiverId = businessOwnerId;
-      const receiverId = "15551601582";
+      const receiverId = businessOwnerId;
+
+      // Ensure business owner exists in users table
+      const { data: existingOwner } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', receiverId)
+        .single();
+
+      if (!existingOwner) {
+        console.log(`Creating business owner user record: ${receiverId}`);
+        const { error: ownerError } = await supabase
+          .from('users')
+          .insert([{
+            id: receiverId,
+            name: 'Business Owner',
+            last_active: messageTimestamp
+          }]);
+
+        if (ownerError) {
+          console.error('Error creating business owner user:', ownerError);
+          continue; // Skip this message if owner creation fails
+        }
+      }
 
       console.log(`Message receiver identified as: ${receiverId}`);
 
