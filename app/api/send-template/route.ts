@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
     if (settingsError || !settings) {
       console.error('User settings not found:', settingsError);
       return NextResponse.json(
-        { error: 'WhatsApp credentials not configured. Please complete setup.' },
+        { error: 'WhatsApp credentials not configured. Please complete setup.5' },
         { status: 400 }
       );
     }
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
     if (!settings.access_token_added || !settings.access_token || !settings.phone_number_id) {
       console.error('WhatsApp API credentials not configured for user:', user.id);
       return NextResponse.json(
-        { error: 'WhatsApp Access Token not configured. Please complete setup.' },
+        { error: 'WhatsApp Access Token not configured. Please complete setup.6' },
         { status: 400 }
       );
     }

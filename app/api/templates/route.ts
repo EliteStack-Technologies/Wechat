@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     if (settingsError || !settings) {
       console.error('User settings not found:', settingsError);
       return NextResponse.json(
-        { error: 'WhatsApp credentials not configured. Please complete setup.' },
+        { error: 'WhatsApp credentials not configured. Please complete setup.7' },
         { status: 400 }
       );
     }
