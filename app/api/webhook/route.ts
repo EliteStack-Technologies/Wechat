@@ -384,7 +384,8 @@ export async function POST(request: NextRequest) {
       }
 
       // The receiver is the business owner who owns this phone number ID
-      const receiverId = businessOwnerId;
+      // const receiverId = businessOwnerId;
+      const receiverId = "15551601582";
 
       console.log(`Message receiver identified as: ${receiverId}`);
 

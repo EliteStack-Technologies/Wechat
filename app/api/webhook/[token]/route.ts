@@ -252,6 +252,8 @@ export async function POST(
     const body = await request.json();
 
     console.log('Received webhook payload for token:', webhookToken?.substring(0, 8) + '...');
+    console.log(body, 'body');
+    
 
     if (!webhookToken) {
       console.error('No webhook token in URL');
