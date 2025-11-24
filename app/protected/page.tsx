@@ -41,6 +41,9 @@ interface MessagePayload {
   timestamp: string;
   message_type?: string;
   media_data?: string | null;
+  is_sent_by_me?: boolean;
+  is_read?: boolean;
+  read_at?: string | null;
 }
 
 interface UnreadConversation {
@@ -356,10 +359,10 @@ export default function ChatPage() {
         if (isRelevantMessage) {
           console.log('Adding message to conversation');
           
-          // Determine if this message was sent by the current user
+          // Use the is_sent_by_me value from the database
           const messageWithFlag = {
             ...newMessage,
-            is_sent_by_me: newMessage.sender_id === user.id,
+            is_sent_by_me: newMessage.is_sent_by_me ?? (newMessage.sender_id === user.id), // Fallback to calculation if not in DB
             timestamp: newMessage.timestamp || new Date().toISOString()
           };
           
@@ -368,6 +371,7 @@ export default function ChatPage() {
             sender_id: newMessage.sender_id,
             current_user_id: user.id,
             is_sent_by_me: messageWithFlag.is_sent_by_me,
+            is_sent_by_me_from_db: newMessage.is_sent_by_me,
             content: messageWithFlag.content?.substring(0, 20)
           });
           
