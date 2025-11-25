@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { Search, MessageCircle, LogOut, Plus, Edit3, Check, X, Phone, FileText, Settings, Users } from "lucide-react";
+import { Search, MessageCircle, LogOut, Plus, Edit3, Check, X, Phone, FileText, Settings, Users, Contact } from "lucide-react";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -417,6 +417,16 @@ export function UserList({ users, selectedUser, onUserSelect, currentUserId, onU
             >
               <Users className="h-5 w-5" />
             </Button>
+            <Link href="/protected/contacts">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-2 text-white hover:bg-green-700 rounded-full transition-colors"
+                title="Contact Management"
+              >
+                <Contact className="h-5 w-5" />
+              </Button>
+            </Link>
             <Link href="/protected/templates">
               <Button
                 variant="ghost"
