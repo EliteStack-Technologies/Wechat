@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Users, Edit, Trash2, ChevronDown, ChevronRight, MessageCircle } from "lucide-react";
 
 interface Group {
-  id: string;
-  name: string;
-  description?: string;
+  group_id: string;
+  group_name: string;
+  group_description?: string;
   member_count: number;
   unread_count?: number;
 }
@@ -111,19 +111,19 @@ export function GroupsList({
 
       {/* Groups List */}
       {groups.map(group => {
-        const isExpanded = expandedGroups.has(group.id);
-        const members = groupMembers[group.id] || [];
-        const isLoadingMembers = loadingMembers.has(group.id);
+        const isExpanded = expandedGroups.has(group.group_id);
+        const members = groupMembers[group.group_id] || [];
+        const isLoadingMembers = loadingMembers.has(group.group_id);
         const totalUnread = members.reduce((sum, m) => sum + (m.unread_count || 0), 0);
 
         return (
-          <div key={group.id} className="border-b border-border/50 last:border-b-0">
+          <div key={group.group_id} className="border-b border-border/50 last:border-b-0">
             {/* Group Header */}
             <div className="group px-4 py-3 hover:bg-muted/50 transition-colors">
               <div className="flex items-center gap-3">
                 {/* Expand/Collapse Button */}
                 <button
-                  onClick={() => toggleGroup(group.id)}
+                  onClick={() => toggleGroup(group.group_id)}
                   className="p-1 hover:bg-muted rounded transition-colors"
                 >
                   {isExpanded ? (
@@ -141,7 +141,7 @@ export function GroupsList({
                 {/* Group Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold truncate">{group.name}</h3>
+                    <h3 className="font-semibold truncate">{group.group_name}</h3>
                     <Badge variant="secondary" className="text-xs">
                       {group.member_count}
                     </Badge>
@@ -151,9 +151,9 @@ export function GroupsList({
                       </Badge>
                     )}
                   </div>
-                  {group.description && (
+                  {group.group_description && (
                     <p className="text-sm text-muted-foreground truncate">
-                      {group.description}
+                      {group.group_description}
                     </p>
                   )}
                 </div>
@@ -166,7 +166,7 @@ export function GroupsList({
                     className="h-8 w-8"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onBroadcastToGroup(group.id);
+                      onBroadcastToGroup(group.group_id);
                     }}
                     title="Send broadcast"
                   >
@@ -190,7 +190,7 @@ export function GroupsList({
                     className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteGroup(group.id, group.name);
+                      handleDeleteGroup(group.group_id, group.group_name);
                     }}
                     title="Delete group"
                   >
