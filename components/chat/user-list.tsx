@@ -26,9 +26,9 @@ interface ChatUser {
 }
 
 interface Group {
-  id: string;
-  name: string;
-  description?: string;
+  group_id: string;
+  group_name: string;
+  group_description?: string;
   member_count: number;
   unread_count?: number;
 }
@@ -344,7 +344,7 @@ export function UserList({ users, selectedUser, onUserSelect, currentUserId, onU
     setShowGroupDialog(true);
   };
 
-  const handleEditGroup = (group: Group) => {
+  const handleEditGroup = (group: { group_id: string; group_name: string; group_description?: string; member_count: number }) => {
     setEditingGroup(group);
     setShowGroupDialog(true);
   };
@@ -376,9 +376,9 @@ export function UserList({ users, selectedUser, onUserSelect, currentUserId, onU
   };
 
   const handleBroadcastToGroup = (groupId: string) => {
-    const group = groups.find(g => g.id === groupId);
+    const group = groups.find(g => g.group_id === groupId);
     if (group && onBroadcastToGroup) {
-      onBroadcastToGroup(groupId, group.name);
+      onBroadcastToGroup(groupId, group.group_name);
     }
   };
 

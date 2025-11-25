@@ -16,9 +16,9 @@ interface ChatUser {
 }
 
 interface Group {
-  id: string;
-  name: string;
-  description?: string;
+  group_id: string;
+  group_name: string;
+  group_description?: string;
   member_count: number;
 }
 
@@ -47,9 +47,9 @@ export function GroupManagementDialog({
   // Load existing group data if editing
   useEffect(() => {
     if (group) {
-      setName(group.name);
-      setDescription(group.description || "");
-      loadGroupMembers(group.id);
+      setName(group.group_name);
+      setDescription(group.group_description || "");
+      loadGroupMembers(group.group_id);
     } else {
       setName("");
       setDescription("");
@@ -95,7 +95,7 @@ export function GroupManagementDialog({
     try {
       if (group) {
         // Update existing group
-        const updateResponse = await fetch(`/api/groups/${group.id}`, {
+        const updateResponse = await fetch(`/api/groups/${group.group_id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, description }),
@@ -106,7 +106,7 @@ export function GroupManagementDialog({
         }
 
         // Get current members
-        const membersResponse = await fetch(`/api/groups/${group.id}/members`);
+        const membersResponse = await fetch(`/api/groups/${group.group_id}/members`);
         const membersData = await membersResponse.json();
         const currentMemberIds = membersData.members?.map((m: { user_id: string }) => m.user_id) || [];
 
@@ -116,7 +116,7 @@ export function GroupManagementDialog({
 
         // Add new members
         if (toAdd.length > 0) {
-          await fetch(`/api/groups/${group.id}/members`, {
+          await fetch(`/api/groups/${group.group_id}/members`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userIds: toAdd }),
@@ -125,7 +125,7 @@ export function GroupManagementDialog({
 
         // Remove members
         for (const userId of toRemove) {
-          await fetch(`/api/groups/${group.id}/members?userId=${userId}`, {
+          await fetch(`/api/groups/${group.group_id}/members?userId=${userId}`, {
             method: 'DELETE',
           });
         }
