@@ -7,6 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { X, Users, Save, Loader2, Search } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+interface Contact {
+  id: string;
+  phone_number: string;
+  custom_name: string;
+  whatsapp_name?: string;
+  email?: string;
+  company?: string;
+}
 
 interface ChatUser {
   id: string;
@@ -33,7 +43,7 @@ interface GroupManagementDialogProps {
 export function GroupManagementDialog({
   isOpen,
   onClose,
-  users,
+  // users,
   group,
   onGroupSaved,
 }: GroupManagementDialogProps) {
@@ -43,6 +53,17 @@ export function GroupManagementDialog({
   const [searchTerm, setSearchTerm] = useState("");
   const [isSaving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  
+  const supabase = createClient();
+
+  // Load contacts when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      loadContacts();
+    }
+  }, [isOpen]);
 
   // Load existing group data if editing
   useEffect(() => {
@@ -57,13 +78,34 @@ export function GroupManagementDialog({
     }
   }, [group]);
 
+  const loadContacts = async () => {
+    setIsLoadingContacts(true);
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("id, phone_number, custom_name, whatsapp_name, email, company")
+        .order("custom_name", { ascending: true });
+
+      if (error) throw error;
+      setContacts(data || []);
+    } catch (error) {
+      console.error("Error loading contacts:", error);
+      setError("Failed to load contacts");
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  };
+
   const loadGroupMembers = async (groupId: string) => {
     try {
-      const response = await fetch(`/api/groups/${groupId}/members`);
-      const data = await response.json();
+      const { data, error } = await supabase
+        .from("contact_groups")
+        .select("contact_id")
+        .eq("group_id", groupId);
       
-      if (data.success && data.members) {
-        setSelectedUserIds(data.members.map((m: { user_id: string }) => m.user_id));
+      if (error) throw error;
+      if (data) {
+        setSelectedUserIds(data.map((m: { contact_id: string }) => m.contact_id));
       }
     } catch (error) {
       console.error('Error loading group members:', error);
@@ -105,29 +147,37 @@ export function GroupManagementDialog({
           throw new Error('Failed to update group');
         }
 
-        // Get current members
-        const membersResponse = await fetch(`/api/groups/${group.group_id}/members`);
-        const membersData = await membersResponse.json();
-        const currentMemberIds = membersData.members?.map((m: { user_id: string }) => m.user_id) || [];
+        // Get current members from contact_groups
+        const { data: currentMembers } = await supabase
+          .from("contact_groups")
+          .select("contact_id")
+          .eq("group_id", group.group_id);
+        
+        const currentMemberIds = currentMembers?.map((m: { contact_id: string }) => m.contact_id) || [];
 
         // Find members to add and remove
         const toAdd = selectedUserIds.filter(id => !currentMemberIds.includes(id));
         const toRemove = currentMemberIds.filter((id: string) => !selectedUserIds.includes(id));
 
-        // Add new members
-        if (toAdd.length > 0) {
-          await fetch(`/api/groups/${group.group_id}/members`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userIds: toAdd }),
-          });
+        // Remove members
+        if (toRemove.length > 0) {
+          await supabase
+            .from("contact_groups")
+            .delete()
+            .eq("group_id", group.group_id)
+            .in("contact_id", toRemove);
         }
 
-        // Remove members
-        for (const userId of toRemove) {
-          await fetch(`/api/groups/${group.group_id}/members?userId=${userId}`, {
-            method: 'DELETE',
-          });
+        // Add new members
+        if (toAdd.length > 0) {
+          const memberships = toAdd.map(contactId => ({
+            contact_id: contactId,
+            group_id: group.group_id,
+          }));
+          
+          await supabase
+            .from("contact_groups")
+            .insert(memberships);
         }
       } else {
         // Create new group
@@ -156,9 +206,17 @@ export function GroupManagementDialog({
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredContacts = contacts.filter(contact =>
+    contact.custom_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.phone_number.includes(searchTerm) ||
+    contact.whatsapp_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    contact.company?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getContactDisplayName = (contact: Contact) => {
+    return contact.custom_name || contact.whatsapp_name || contact.phone_number;
+  };
 
   if (!isOpen) return null;
 
@@ -217,39 +275,52 @@ export function GroupManagementDialog({
 
           {/* Members Selection */}
           <div className="space-y-3">
-            <Label>Select Members * ({selectedUserIds.length} selected)</Label>
+            <Label>Select Contacts * ({selectedUserIds.length} selected)</Label>
             
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search users..."
+                placeholder="Search contacts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
 
-            {/* User List */}
+            {/* Contact List */}
             <div className="border border-border rounded-lg max-h-64 overflow-y-auto">
-              {filteredUsers.length === 0 ? (
+              {isLoadingContacts ? (
                 <div className="p-8 text-center text-muted-foreground">
-                  No users found
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  Loading contacts...
+                </div>
+              ) : filteredContacts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  {contacts.length === 0 ? "No contacts available. Add contacts first." : "No contacts found"}
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {filteredUsers.map(user => (
+                  {filteredContacts.map(contact => (
                     <label
-                      key={user.id}
+                      key={contact.id}
                       className="flex items-center gap-3 p-3 hover:bg-muted cursor-pointer transition-colors"
                     >
                       <Checkbox
-                        checked={selectedUserIds.includes(user.id)}
-                        onCheckedChange={() => handleToggleUser(user.id)}
+                        checked={selectedUserIds.includes(contact.id)}
+                        onCheckedChange={() => handleToggleUser(contact.id)}
                       />
-                      <div className="flex-1">
-                        <p className="font-medium">{user.name}</p>
-                        <p className="text-sm text-muted-foreground">{user.id}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{getContactDisplayName(contact)}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span className="truncate">{contact.phone_number}</span>
+                          {contact.company && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{contact.company}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </label>
                   ))}

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+interface ContactMemberData {
+  phone_number: string;
+  custom_name: string;
+  whatsapp_name?: string;
+}
+
+interface ContactGroupMemberData {
+  contact_id: string;
+  contacts: ContactMemberData | null;
+}
+
 /**
  * GET - Get all members of a group
  */
@@ -36,21 +47,40 @@ export async function GET(
       );
     }
 
-    // Get members with details
-    const { data: members, error: membersError } = await supabase
-      .rpc('get_group_members_with_details', { p_group_id: groupId });
+    // Get contact members with details from contact_groups
+    const { data: contactGroups, error: contactGroupsError } = await supabase
+      .from('contact_groups')
+      .select(`
+        contact_id,
+        contacts (
+          id,
+          phone_number,
+          custom_name,
+          whatsapp_name
+        )
+      `)
+      .eq('group_id', groupId);
 
-    if (membersError) {
-      console.error('Error fetching members:', membersError);
+    if (contactGroupsError) {
+      console.error('Error fetching contact members:', contactGroupsError);
       return NextResponse.json(
-        { error: 'Failed to fetch members', details: membersError.message },
+        { error: 'Failed to fetch members', details: contactGroupsError.message },
         { status: 500 }
       );
     }
 
+    // Format the response to match the expected structure
+    const members = ((contactGroups as unknown as ContactGroupMemberData[]) || []).map((cg) => ({
+      member_id: cg.contact_id,
+      user_id: cg.contacts?.phone_number || '',
+      custom_name: cg.contacts?.custom_name || '',
+      whatsapp_name: cg.contacts?.whatsapp_name || '',
+      unread_count: 0, // We can add unread count logic later if needed
+    }));
+
     return NextResponse.json({
       success: true,
-      members: members || [],
+      members: members,
     });
 
   } catch (error) {

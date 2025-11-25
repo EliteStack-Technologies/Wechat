@@ -115,6 +115,9 @@ export function GroupsList({
         const members = groupMembers[group.group_id] || [];
         const isLoadingMembers = loadingMembers.has(group.group_id);
         const totalUnread = members.reduce((sum, m) => sum + (m.unread_count || 0), 0);
+        
+        // Use actual loaded member count if available, otherwise use the count from API
+        // const displayMemberCount = members.length > 0 ? members.length : group.member_count;
 
         return (
           <div key={group.group_id} className="border-b border-border/50 last:border-b-0">
@@ -142,9 +145,9 @@ export function GroupsList({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold truncate">{group.group_name}</h3>
-                    <Badge variant="secondary" className="text-xs">
+                    {/* <Badge variant="secondary" className="text-xs">
                       {group.member_count}
-                    </Badge>
+                    </Badge> */}
                     {totalUnread > 0 && (
                       <Badge className="bg-red-500 text-white text-xs">
                         {totalUnread}

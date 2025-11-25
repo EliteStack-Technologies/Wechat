@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 // GET - Fetch a specific contact
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    const contactId = params.id;
+    const { id: contactId } = await params;
 
     // Fetch the contact
     const { data: contact, error } = await supabase
@@ -56,7 +56,7 @@ export async function GET(
 // PUT - Update a contact
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -71,7 +71,7 @@ export async function PUT(
       );
     }
 
-    const contactId = params.id;
+    const { id: contactId } = await params;
     const body = await request.json();
     const { 
       customName,
@@ -132,7 +132,7 @@ export async function PUT(
 // DELETE - Delete a contact
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -147,7 +147,7 @@ export async function DELETE(
       );
     }
 
-    const contactId = params.id;
+    const { id: contactId } = await params;
 
     // Delete the contact (CASCADE will handle related data)
     const { error: deleteError } = await supabase

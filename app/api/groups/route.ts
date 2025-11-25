@@ -87,19 +87,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add members if provided
+    // Add members if provided (using contact_groups for contacts)
     if (memberIds && Array.isArray(memberIds) && memberIds.length > 0) {
-      const members = memberIds.map(userId => ({
+      const memberships = memberIds.map(contactId => ({
         group_id: group.id,
-        user_id: userId,
+        contact_id: contactId,
       }));
 
       const { error: membersError } = await supabase
-        .from('group_members')
-        .insert(members);
+        .from('contact_groups')
+        .insert(memberships);
 
       if (membersError) {
-        console.error('Error adding members:', membersError);
+        console.error('Error adding contacts to group:', membersError);
         // Don't fail the entire request, just log the error
       }
     }

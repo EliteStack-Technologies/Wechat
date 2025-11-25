@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
+interface ContactData {
+  phone_number: string;
+}
+
+interface ContactGroupData {
+  contact_id: string;
+  contacts: ContactData | null;
+}
+
 /**
  * POST - Broadcast a message to all group members
  * Sends messages via WhatsApp and stores them in the database
@@ -47,10 +56,15 @@ export async function POST(
       );
     }
 
-    // Get all group members
-    const { data: members, error: membersError } = await supabase
-      .from('group_members')
-      .select('user_id')
+    // Get all group contact members
+    const { data: contactGroups, error: membersError } = await supabase
+      .from('contact_groups')
+      .select(`
+        contact_id,
+        contacts (
+          phone_number
+        )
+      `)
       .eq('group_id', groupId);
 
     if (membersError) {
@@ -60,6 +74,13 @@ export async function POST(
         { status: 500 }
       );
     }
+
+    // Extract phone numbers from contacts
+    const members = ((contactGroups as unknown as ContactGroupData[]) || [])
+      .filter((cg) => cg.contacts?.phone_number)
+      .map((cg) => ({
+        user_id: cg.contacts!.phone_number
+      }));
 
     if (!members || members.length === 0) {
       return NextResponse.json(

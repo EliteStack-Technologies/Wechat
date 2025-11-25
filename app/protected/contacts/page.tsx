@@ -9,7 +9,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Edit, Trash2, Save, X, Phone, User, Mail, Building, MapPin, Calendar, Tag, FileText, ArrowLeft } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Save, X, Phone, User, Mail, Building, MapPin, Calendar, Tag, FileText, ArrowLeft, Users } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
 
 interface Contact {
@@ -27,6 +28,13 @@ interface Contact {
   last_active?: string;
   created_at: string;
   updated_at: string;
+}
+
+interface Group {
+  group_id: string;
+  group_name: string;
+  group_description?: string;
+  member_count?: number;
 }
 
 export default function ContactsPage() {
@@ -48,12 +56,15 @@ export default function ContactsPage() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
 
   const supabase = createClient();
   const router = useRouter();
 
   useEffect(() => {
     loadContacts();
+    loadGroups();
   }, []);
 
   useEffect(() => {
@@ -94,6 +105,19 @@ export default function ContactsPage() {
     }
   };
 
+  const loadGroups = async () => {
+    try {
+      const response = await fetch("/api/groups");
+      const data = await response.json();
+      
+      if (data.success) {
+        setGroups(data.groups || []);
+      }
+    } catch (error) {
+      console.error("Error loading groups:", error);
+    }
+  };
+
   const handleAddContact = () => {
     setEditingContact(null);
     setFormData({
@@ -106,11 +130,12 @@ export default function ContactsPage() {
       notes: "",
       tags: "",
     });
+    setSelectedGroups([]);
     setShowAddDialog(true);
     setError(null);
   };
 
-  const handleEditContact = (contact: Contact) => {
+  const handleEditContact = async (contact: Contact) => {
     setEditingContact(contact);
     setFormData({
       phoneNumber: contact.phone_number,
@@ -122,6 +147,20 @@ export default function ContactsPage() {
       notes: contact.notes || "",
       tags: contact.tags?.join(", ") || "",
     });
+    
+    // Load groups this contact is in
+    try {
+      const { data } = await supabase
+        .from("contact_groups")
+        .select("group_id")
+        .eq("contact_id", contact.id);
+      
+      setSelectedGroups(data?.map(m => m.group_id) || []);
+    } catch (error) {
+      console.error("Error loading contact groups:", error);
+      setSelectedGroups([]);
+    }
+    
     setShowAddDialog(true);
     setError(null);
   };
@@ -156,6 +195,9 @@ export default function ContactsPage() {
 
         if (error) throw error;
 
+        // Update group memberships
+        await updateGroupMemberships(editingContact.id);
+
         await loadContacts();
         setShowAddDialog(false);
       } catch (error) {
@@ -178,7 +220,7 @@ export default function ContactsPage() {
         const newPhoneNumber = formData.phoneNumber.trim();
         
         // Create the contact
-        const { error: insertError } = await supabase
+        const { data: newContact, error: insertError } = await supabase
           .from("contacts")
           .insert({
             phone_number: newPhoneNumber,
@@ -192,7 +234,9 @@ export default function ContactsPage() {
               ? formData.tags.split(",").map((t) => t.trim()).filter(Boolean)
               : null,
             last_active: new Date().toISOString(),
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) {
           if (insertError.code === '23505') {
@@ -201,6 +245,11 @@ export default function ContactsPage() {
             return;
           }
           throw insertError;
+        }
+
+        // Add to selected groups
+        if (selectedGroups.length > 0 && newContact) {
+          await updateGroupMemberships(newContact.id);
         }
 
         await loadContacts();
@@ -212,6 +261,61 @@ export default function ContactsPage() {
         setIsSaving(false);
       }
     }
+  };
+
+  const updateGroupMemberships = async (contactId: string) => {
+    try {
+      // Get current group memberships
+      const { data: currentMemberships } = await supabase
+        .from("contact_groups")
+        .select("group_id")
+        .eq("contact_id", contactId);
+
+      const currentGroupIds = currentMemberships?.map(m => m.group_id) || [];
+      
+      // Find groups to remove (in current but not in selected)
+      const groupsToRemove = currentGroupIds.filter(id => !selectedGroups.includes(id));
+      
+      // Find groups to add (in selected but not in current)
+      const groupsToAdd = selectedGroups.filter(id => !currentGroupIds.includes(id));
+
+      // Remove memberships
+      if (groupsToRemove.length > 0) {
+        await supabase
+          .from("contact_groups")
+          .delete()
+          .eq("contact_id", contactId)
+          .in("group_id", groupsToRemove);
+      }
+
+      // Add new memberships (only ones that don't exist)
+      if (groupsToAdd.length > 0) {
+        const memberships = groupsToAdd.map(groupId => ({
+          contact_id: contactId,
+          group_id: groupId,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("contact_groups")
+          .insert(memberships);
+
+        if (insertError && insertError.code !== '23505') {
+          // Ignore duplicate key errors (23505), throw others
+          throw insertError;
+        }
+      }
+    } catch (error) {
+      console.error("Error updating group memberships:", error);
+      throw error;
+    }
+  };
+
+  const toggleGroup = (groupId: string) => {
+    setSelectedGroups(prev => 
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
   };
 
   const handleDeleteContact = async (contactId: string) => {
@@ -591,6 +695,53 @@ export default function ContactsPage() {
                   rows={4}
                 />
               </div>
+
+              {/* Groups */}
+              {groups.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Add to Groups
+                  </Label>
+                  <div className="border rounded-lg p-3 space-y-2 max-h-48 overflow-y-auto">
+                    {groups.map((group) => (
+                      <div
+                        key={group.group_id}
+                        className="flex items-center space-x-2 p-2 hover:bg-accent rounded-md cursor-pointer"
+                        onClick={() => toggleGroup(group.group_id)}
+                      >
+                        <Checkbox
+                          id={`group-${group.group_id}`}
+                          checked={selectedGroups.includes(group.group_id)}
+                          onCheckedChange={() => toggleGroup(group.group_id)}
+                          disabled={isSaving}
+                        />
+                        <Label
+                          htmlFor={`group-${group.group_id}`}
+                          className="flex-1 cursor-pointer font-normal"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{group.group_name}</span>
+                            {group.member_count !== undefined && (
+                              <Badge variant="secondary" className="text-xs">
+                                {group.member_count} members
+                              </Badge>
+                            )}
+                          </div>
+                          {group.group_description && (
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {group.group_description}
+                            </p>
+                          )}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select groups to add this contact to
+                  </p>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-2 pt-4">
